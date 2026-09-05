@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoicePulse AI | Enterprise QA Agent</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button.stop {
+            background: #ef4444;
+        }
+
+        button.stop:hover {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+
+        #transcriptBox {
+            height: 220px;
+            overflow-y: auto;
+            background: #0b0f19;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            border: 1px solid #1e293b;
+            line-height: 1.5;
+        }
+
+        #whisperBox {
+            height: 220px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #0b0f19;
+            margin-top: 10px;
+            font-weight: 500;
+            color: #34d399;
+            border: 1px solid #1e293b;
+            overflow-y: auto;
+        }
+
+        .warning {
+            color: #f87171 !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🎙️ VoicePulse AI Engine</h1>
+        <p>Real-Time Sales QA & Compliance Assistant</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>Session Controls</h3>
+            <button id="startBtn">▶ Start Live Call Monitoring</button>
+            <button id="stopBtn" class="stop" disabled>⏹ End Call</button>
+            <h3>Live Transcript Stream</h3>
+            <div id="transcriptBox">System standing by... Click start to begin.</div>
+        </div>
+
+        <div class="card">
+            <h3>AI Supervisor Whispers</h3>
+            <div id="whisperBox">Awaiting audio input...</div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let audioContext;
+        let processor;
+        let input;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const transcriptBox = document.getElementById('transcriptBox');
+        const whisperBox = document.getElementById('whisperBox');
+
+        startBtn.onclick = async () => {
+            try {
+                startBtn.disabled = true;
+                transcriptBox.innerHTML = "<em>Fetching secure token...</em><br>";
+
+                const tokenResponse = await fetch('/api/token');
+                if (!tokenResponse.ok) {
+                    const errData = await tokenResponse.json();
+                    throw new Error(errData.detail || "Backend token error");
+                }
+                const tokenData = await tokenResponse.json();
+
+                const wsUrl = `wss://streaming.assemblyai.com/v3/ws?speech_model=universal-3-5-pro&sample_rate=16000&encoding=pcm_s16le&token=${tokenData.token}`;
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = async () => {
+                    stopBtn.disabled = false;
+                    transcriptBox.innerHTML = "<em>Connected! Listening to microphone... Speak now.</em><br>";
+
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } });
+                    audioContext = new AudioContext({ sampleRate: 16000 });
+                    input = audioContext.createMediaStreamSource(stream);
+                    processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                    processor.onaudioprocess = (e) => {
+                        const float32Array = e.inputBuffer.getChannelData(0);
+                        const int16Array = new Int16Array(float32Array.length);
+                        for (let i = 0; i < float32Array.length; i++) {
+                            int16Array[i] = Math.max(-32768, Math.min(32767, float32Array[i] * 32768));
+                        }
+                        if (socket.readyState === WebSocket.OPEN) {
+                            socket.send(int16Array.buffer);
+                        }
+                    };
+
+                    input.connect(processor);
+                    processor.connect(audioContext.destination);
+                };
+
+                socket.onmessage = async (message) => {
+                    const res = JSON.parse(message.data);
+                    if (res.type === 'Turn' && res.end_of_turn && res.transcript) {
+                        const speakerText = res.transcript;
+                        transcriptBox.innerHTML += `🗣️ ${speakerText}<br>`;
+                        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+
+                        const evalRes = await fetch('/api/qa/evaluate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: speakerText })
+                        });
+                        const evaluation = await evalRes.json();
+                        const result = evaluation.evaluation_result;
+
+                        // Synchronized with updated ComprehensiveQAEvaluation model
+                        if (result.compliance_violation) {
+                            whisperBox.innerHTML = `<span class="warning">⚠️ ALERT [Risk: ${(result.risk_score * 100).toFixed(0)}%]:<br>${result.detected_category}<br><br>💡 Whisper: ${result.supervisor_whisper}</span>`;
+                        } else {
+                            whisperBox.innerHTML = `✅ ${result.supervisor_whisper}<br><small>Tone: ${result.sentiment_tone}</small>`;
+                        }
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    console.error("WebSocket Error:", error);
+                    transcriptBox.innerHTML += `<span class="warning"><br>WebSocket connection error. Verify browser mic permissions.</span>`;
+                };
+
+                socket.onclose = () => {
+                    stopBtn.click();
+                };
+
+            } catch (err) {
+                alert("Error starting session: " + err.message);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        };
+
+        stopBtn.onclick = () => {
+            if (processor && input) {
+                try { processor.disconnect(); input.disconnect(); } catch (e) { }
+            }
+            if (audioContext) {
+                try { audioContext.close(); } catch (e) { }
+            }
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            transcriptBox.innerHTML += "<br><em>Call monitoring ended.</em>";
+        };
+    </script>
+</body>
+
+</html>
