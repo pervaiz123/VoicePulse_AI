@@ -3,225 +3,226 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoicePulse AI | Enterprise QA Agent</title>
+    <title>VoicePulse AI - Enterprise QA & Compliance</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #0f172a;
-            color: white;
-            padding: 2rem;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
             max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-
-        .card {
+            margin: auto;
             background: #1e293b;
-            padding: 1.5rem;
-            border-radius: 10px;
-            border: 1px solid #334155;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
 
-        button {
+        h1 {
+            color: #38bdf8;
+            margin-top: 0;
+        }
+
+        .btn {
             background: #3b82f6;
             color: white;
             border: none;
-            padding: 12px 20px;
-            font-size: 1rem;
+            padding: 12px 24px;
+            font-size: 16px;
             border-radius: 6px;
             cursor: pointer;
-            width: 100%;
-            margin-bottom: 10px;
-            font-weight: 600;
+            font-weight: bold;
             transition: background 0.2s;
         }
 
-        button:hover {
+        .btn:hover {
             background: #2563eb;
         }
 
-        button.stop {
+        .btn.stop {
             background: #ef4444;
         }
 
-        button.stop:hover {
+        .btn.stop:hover {
             background: #dc2626;
         }
 
-        button:disabled {
-            background: #475569;
-            cursor: not-allowed;
+        .status-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #0f172a;
+            border: 1px solid #334155;
         }
 
-        #transcriptBox {
-            height: 220px;
+        .compliant {
+            border-left: 6px solid #22c55e;
+        }
+
+        .violation {
+            border-left: 6px solid #ef4444;
+            background: #450a0a;
+        }
+
+        .log-box {
+            margin-top: 20px;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            height: 200px;
             overflow-y: auto;
-            background: #0b0f19;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 10px;
-            font-size: 0.95rem;
-            color: #cbd5e1;
-            border: 1px solid #1e293b;
-            line-height: 1.5;
-        }
-
-        #whisperBox {
-            height: 220px;
-            padding: 12px;
-            border-radius: 6px;
-            background: #0b0f19;
-            margin-top: 10px;
-            font-weight: 500;
-            color: #34d399;
-            border: 1px solid #1e293b;
-            overflow-y: auto;
-        }
-
-        .warning {
-            color: #f87171 !important;
-            font-weight: bold;
+            border: 1px solid #334155;
+            font-family: monospace;
         }
     </style>
 </head>
 
 <body>
-    <div class="header">
-        <h1>🎙️ VoicePulse AI Engine</h1>
-        <p>Real-Time Sales QA & Compliance Assistant</p>
-    </div>
-
-    <div class="dashboard">
-        <div class="card">
-            <h3>Session Controls</h3>
-            <button id="startBtn">▶ Start Live Call Monitoring</button>
-            <button id="stopBtn" class="stop" disabled>⏹ End Call</button>
-            <h3>Live Transcript Stream</h3>
-            <div id="transcriptBox">System standing by... Click start to begin.</div>
+    <div class="container">
+        <h1>VoicePulse AI 🎙️⚡</h1>
+        <p>Enterprise Real-Time Sales QA & Compliance Monitoring Engine</p>
+        <div>
+            <button id="toggleBtn" class="btn" onclick="toggleMonitoring()">Start Live Call Monitoring</button>
         </div>
-
-        <div class="card">
-            <h3>AI Supervisor Whispers</h3>
-            <div id="whisperBox">Awaiting audio input...</div>
+        <div id="statusBox" class="status-box compliant">
+            <h3>Compliance Status: <span id="statusText">Idle</span></h3>
+            <p><strong>AI Supervisor Whisper:</strong> <span id="whisperText">System ready for live call monitoring
+                    session.</span></p>
         </div>
+        <div class="log-box" id="logBox">Live transcriptions and risk evaluations will appear here...</div>
     </div>
 
     <script>
-        let socket;
-        let audioContext;
-        let processor;
-        let input;
+        let isRunning = false;
+        let audioContext = null;
+        let mediaStream = null;
+        let processor = null;
+        let socket = null;
+        let reconnectAttempts = 0;
+        const maxReconnects = 5;
 
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const transcriptBox = document.getElementById('transcriptBox');
-        const whisperBox = document.getElementById('whisperBox');
+        async function toggleMonitoring() {
+            const btn = document.getElementById('toggleBtn');
+            if (!isRunning) {
+                try {
+                    const res = await fetch('/api/token');
+                    const data = await res.json();
+                    if (!data.token) throw new Error("Failed to retrieve temporary V3 token");
 
-        startBtn.onclick = async () => {
-            try {
-                startBtn.disabled = true;
-                transcriptBox.innerHTML = "<em>Fetching secure token...</em><br>";
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                    const source = audioContext.createMediaStreamSource(mediaStream);
 
-                const tokenResponse = await fetch('/api/token');
-                if (!tokenResponse.ok) {
-                    const errData = await tokenResponse.json();
-                    throw new Error(errData.detail || "Backend token error");
-                }
-                const tokenData = await tokenResponse.json();
-
-                const wsUrl = `wss://streaming.assemblyai.com/v3/ws?speech_model=universal-3-5-pro&sample_rate=16000&encoding=pcm_s16le&token=${tokenData.token}`;
-                socket = new WebSocket(wsUrl);
-
-                socket.onopen = async () => {
-                    stopBtn.disabled = false;
-                    transcriptBox.innerHTML = "<em>Connected! Listening to microphone... Speak now.</em><br>";
-
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 } });
-                    audioContext = new AudioContext({ sampleRate: 16000 });
-                    input = audioContext.createMediaStreamSource(stream);
                     processor = audioContext.createScriptProcessor(4096, 1, 1);
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    connectWebSocket(data.token);
 
                     processor.onaudioprocess = (e) => {
-                        const float32Array = e.inputBuffer.getChannelData(0);
-                        const int16Array = new Int16Array(float32Array.length);
-                        for (let i = 0; i < float32Array.length; i++) {
-                            int16Array[i] = Math.max(-32768, Math.min(32767, float32Array[i] * 32768));
+                        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const pcm16 = new Int16Array(inputData.length);
+                        for (let i = 0; i < inputData.length; i++) {
+                            pcm16[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
                         }
-                        if (socket.readyState === WebSocket.OPEN) {
-                            socket.send(int16Array.buffer);
-                        }
+                        socket.send(pcm16.buffer);
                     };
 
-                    input.connect(processor);
-                    processor.connect(audioContext.destination);
-                };
+                    isRunning = true;
+                    btn.textContent = "Stop Live Call Monitoring";
+                    btn.className = "btn stop";
+                    logMessage("Live monitoring session initiated successfully.");
+                } catch (err) {
+                    alert("Error starting monitoring: " + err.message);
+                }
+            } else {
+                stopMonitoring();
+            }
+        }
 
-                socket.onmessage = async (message) => {
-                    const res = JSON.parse(message.data);
-                    if (res.type === 'Turn' && res.end_of_turn && res.transcript) {
-                        const speakerText = res.transcript;
-                        transcriptBox.innerHTML += `🗣️ ${speakerText}<br>`;
-                        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+        function connectWebSocket(token) {
+            const wsUrl = `wss://streaming.assemblyai.com/v3/ws?speech_model=universal-3-5-pro&sample_rate=16000&encoding=pcm_s16le&token=${token}`;
+            socket = new WebSocket(wsUrl);
 
-                        const evalRes = await fetch('/api/qa/evaluate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: speakerText })
-                        });
-                        const evaluation = await evalRes.json();
-                        const result = evaluation.evaluation_result;
+            socket.onopen = () => {
+                reconnectAttempts = 0;
+                logMessage("Connected to AssemblyAI V3 Streaming WebSocket.");
+            };
 
-                        // Synchronized with updated ComprehensiveQAEvaluation model
-                        if (result.compliance_violation) {
-                            whisperBox.innerHTML = `<span class="warning">⚠️ ALERT [Risk: ${(result.risk_score * 100).toFixed(0)}%]:<br>${result.detected_category}<br><br>💡 Whisper: ${result.supervisor_whisper}</span>`;
-                        } else {
-                            whisperBox.innerHTML = `✅ ${result.supervisor_whisper}<br><small>Tone: ${result.sentiment_tone}</small>`;
-                        }
-                    }
-                };
+            socket.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === "Turn" && msg.transcript) {
+                    logMessage(`[Transcript]: ${msg.transcript}`);
+                    await evaluateTranscript(msg.transcript);
+                }
+            };
 
-                socket.onerror = (error) => {
-                    console.error("WebSocket Error:", error);
-                    transcriptBox.innerHTML += `<span class="warning"><br>WebSocket connection error. Verify browser mic permissions.</span>`;
-                };
+            socket.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+            };
 
-                socket.onclose = () => {
-                    stopBtn.click();
-                };
+            socket.onclose = (event) => {
+                if (!event.wasClean && isRunning && reconnectAttempts < maxReconnects) {
+                    reconnectAttempts++;
+                    let timeout = Math.pow(2, reconnectAttempts) * 1000;
+                    logMessage(`WebSocket disconnected. Reconnecting in ${timeout}ms...`);
+                    setTimeout(() => connectWebSocket(token), timeout);
+                }
+            };
+        }
 
+        async function evaluateTranscript(text) {
+            try {
+                const res = await fetch('/api/qa/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const result = (await res.json()).evaluation_result;
+
+                const box = document.getElementById('statusBox');
+                const statusText = document.getElementById('statusText');
+                const whisperText = document.getElementById('whisperText');
+
+                statusText.textContent = result.detected_category;
+                whisperText.textContent = result.supervisor_whisper;
+
+                if (result.compliance_violation) {
+                    box.className = "status-box violation";
+                } else {
+                    box.className = "status-box compliant";
+                }
             } catch (err) {
-                alert("Error starting session: " + err.message);
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
+                console.error("Evaluation error:", err);
             }
-        };
+        }
 
-        stopBtn.onclick = () => {
-            if (processor && input) {
-                try { processor.disconnect(); input.disconnect(); } catch (e) { }
-            }
-            if (audioContext) {
-                try { audioContext.close(); } catch (e) { }
-            }
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.close();
-            }
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            transcriptBox.innerHTML += "<br><em>Call monitoring ended.</em>";
-        };
+        function stopMonitoring() {
+            isRunning = false;
+            if (processor) processor.disconnect();
+            if (audioContext) audioContext.close();
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            if (socket) socket.close();
+
+            const btn = document.getElementById('toggleBtn');
+            btn.textContent = "Start Live Call Monitoring";
+            btn.className = "btn";
+            document.getElementById('statusBox').className = "status-box compliant";
+            document.getElementById('statusText').textContent = "Idle";
+            document.getElementById('whisperText').textContent = "Session closed successfully.";
+            logMessage("Monitoring session terminated.");
+        }
+
+        function logMessage(text) {
+            const box = document.getElementById('logBox');
+            box.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${text}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
     </script>
 </body>
 

@@ -1,82 +1,94 @@
 import os
-import requests
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv, find_dotenv
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+import requests
 from urllib.parse import urlencode
+import re
+from dotenv import load_dotenv
 
-load_dotenv(find_dotenv(), override=True)
+load_dotenv()
 
-app = FastAPI(
-    title="VoicePulse AI Enterprise Engine",
-    description="Real-Time Sales QA, Diarization, and Compliance Intelligence",
-    version="4.0.0"
-)
+app = FastAPI(title="VoicePulse AI", version="2.0.0")
 
-class ComprehensiveQAEvaluation(BaseModel):
-    call_id: str
-    risk_score: float
-    detected_category: str
-    compliance_violation: bool
-    supervisor_whisper: str
-    sentiment_tone: str
+class EvaluationRequest(BaseModel):
+    text: str
+    call_id: str = "VOICEPULSE-SECURE-01"
+
+@app.get("/", response_class=HTMLResponse)
+def serve_dashboard():
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h3>VoicePulse AI Dashboard (index.html missing)</h3>"
 
 @app.get("/api/token")
-def get_realtime_token():
-    api_key = os.getenv("ASSEMBLYAI_API_KEY", "3de74bbb2f0e485ba1db797990091d1e")
+def generate_assemblyai_token():
+    api_key = os.getenv("ASSEMBLYAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="Missing API Key")
+        raise HTTPException(status_code=500, detail="ASSEMBLYAI_API_KEY environment variable is not set.")
     
-    cleaned_key = api_key.strip().replace('"', '').replace("'", "").replace("\n", "").replace("\r", "")
+    clean_key = api_key.strip().strip('"').strip("'")
     url = "https://streaming.assemblyai.com/v3/token"
-    endpoint = f"{url}?{urlencode({'expires_in_seconds': 300})}"
     
-    response = requests.get(endpoint, headers={"Authorization": cleaned_key})
-    if response.status_code == 200:
-        return response.json()
+    try:
+        response = requests.get(
+            f"{url}?{urlencode({'expires_in_seconds': 300})}",
+            headers={"Authorization": clean_key}
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"AssemblyAI token error: {response.text}")
         
-    raise HTTPException(status_code=500, detail=f"Authentication Failed: {response.text}")
+        data = response.json()
+        return {"token": data.get("token")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/qa/evaluate")
-def evaluate_call_transcript(data: dict):
-    text = data.get("text", "").lower()
+def evaluate_call_transcript(data: EvaluationRequest):
+    text = data.text.lower()
     
-    high_risk_phrases = ["guaranteed return", "no risk", "definitely will profit", "100% safe", "act now or lose"]
-    medium_risk_phrases = ["trust me", "secret strategy", "easy money", "hurry"]
+    guarantee_patterns = [
+        r"\b\d+%\s*(return|profit|gain|guarantee)",
+        r"guaranteed\s*(return|profit|gain|win)",
+        r"risk[\s-]?free",
+        r"100%\s*safe"
+    ]
     
-    violation = any(phrase in text for phrase in high_risk_phrases)
-    medium_warning = any(phrase in text for phrase in medium_risk_phrases)
+    high_pressure_patterns = [
+        r"act\s*now",
+        r"limited\s*time",
+        r"don't\s*miss\s*out",
+        r"secret\s*strategy"
+    ]
     
-    if violation:
-        risk = 0.95
+    has_guarantee_violation = any(re.search(pat, text) for pat in guarantee_patterns)
+    has_pressure_tactic = any(re.search(pat, text) for pat in high_pressure_patterns)
+    
+    if has_guarantee_violation:
+        risk = 0.98
         category = "Regulatory Financial Guarantee Violation"
-        whisper = "CRITICAL: Absolute financial guarantee detected. Intervene immediately!"
-        sentiment = "High Risk / Aggressive"
-    elif medium_warning:
-        risk = 0.60
+        whisper = "CRITICAL: Absolute or numeric financial guarantee detected. Immediate correction required!"
+        sentiment = "High Risk / Non-Compliant"
+    elif has_pressure_tactic:
+        risk = 0.65
         category = "High-Pressure Sales Tactic"
-        whisper = "WARNING: Avoid high-pressure urgency phrases. Maintain transparency."
+        whisper = "WARNING: Urgency or manipulative sales phrase identified. Maintain neutral advisory tone."
         sentiment = "Cautionary"
     else:
-        risk = 0.05
-        category = "Compliant"
-        whisper = "Good rapport and compliant phrasing. Continue execution."
-        sentiment = "Professional / Safe"
+        risk = 0.02
+        category = "Fully Compliant"
+        whisper = "Professional conversational flow. Continue execution."
+        sentiment = "Compliant / Professional"
 
-    eval_result = ComprehensiveQAEvaluation(
-        call_id=data.get("call_id", "VOICEPULSE-SECURE-01"),
-        risk_score=risk,
-        detected_category=category,
-        compliance_violation=violation,
-        supervisor_whisper=whisper,
-        sentiment_tone=sentiment
-    )
-    
-    return {"status": "success", "evaluation_result": eval_result.model_dump()}
-
-@app.get("/")
-def serve_dashboard():
-    if not os.path.exists("index.html"):
-        return HTMLResponse(content="<h1>Dashboard missing index.html</h1>", status_code=404)
-    return FileResponse("index.html")
+    return {
+        "status": "success",
+        "evaluation_result": {
+            "call_id": data.call_id,
+            "risk_score": risk,
+            "detected_category": category,
+            "compliance_violation": has_guarantee_violation,
+            "supervisor_whisper": whisper,
+            "sentiment_tone": sentiment
+        }
+    }
