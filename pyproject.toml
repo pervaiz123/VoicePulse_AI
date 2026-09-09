@@ -1,0 +1,14 @@
+[project]
+name = "voicepulse-ai"
+version = "0.1.0"
+description = "Enterprise Real-Time Sales QA & Compliance Monitoring Engine"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "requests>=2.28.0",
+    "python-dotenv>=1.0.0"
+]
+
+[tool.vercel]
+entrypoint = "main:app"
