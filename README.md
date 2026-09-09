@@ -1,90 +1,60 @@
-# VoicePulse AI 🎙️⚡
-
-> Enterprise-grade real-time sales QA and compliance monitoring engine designed to safeguard customer interactions as they happen.
-
-[![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-teal.svg)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-VoicePulse AI is an advanced AI-powered speech and text analytics application built for sales and support environments. It listens to live microphone audio streams via secure WebSockets, transcribes speech using AssemblyAI's cutting-edge V3 Universal streaming model, and evaluates compliance risks in real time to instantly alert managers or agents of regulatory violations.
-
----
-
-## 🏗️ System Architecture & Workflow
-
-1. **Client Audio Capture:** The browser captures microphone input using the Web Audio API, downsampling raw PCM data to `16kHz` and converting it to `Int16` buffers.
-2. **Secure Token Exchange:** The FastAPI backend securely communicates with AssemblyAI's V3 token endpoint (`/api/token`) to generate short-lived session tokens without exposing master API keys to the browser client.
-3. **Real-Time WebSocket Stream:** Audio is streamed over secure WebSockets (`wss://`) to AssemblyAI's real-time transcription engine.
-4. **Semantic Compliance Evaluation:** As transcripts update turn-by-turn, the backend evaluates text against compliance rules, calculating multi-factor risk scores and generating live "AI Supervisor Whispers."
-
----
-
-## ✨ Key Features
-
-* **Real-Time Speech-to-Text:** Ultra-low latency streaming transcription powered by AssemblyAI Universal V3.
-* **Semantic Risk Scoring Engine:** Evaluates conversational text for high-pressure sales tactics, misleading claims, and regulatory financial guarantee violations.
-* **Instant AI Supervisor Whispers:** Dynamically renders visual feedback, warning badges, and corrective coaching hints directly on the dashboard interface.
-* **Secure Token Handshaking:** Hides API credentials behind a protected backend route with rigorous string sanitization to eliminate header authentication errors.
-
----
-
-## 🛠️ Tech Stack
-
-* **Backend:** Python, FastAPI, Pydantic, Uvicorn, Requests
-* **Speech & AI:** AssemblyAI V3 Streaming WebSockets
-* **Frontend:** HTML5, Modern CSS3, JavaScript (Web Audio API)
-* **Environment Management:** `python-dotenv`
-
----
-
-## 🚀 Installation & Quickstart
-
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/pervaiz123/VoicePulse_AI.git](https://github.com/pervaiz123/VoicePulse_AI.git)
+VoicePulse AI 🎙️⚡Enterprise Real-Time Sales QA & Compliance Monitoring EngineVoicePulse AI is a high-performance, real-time speech analytics and compliance engine designed for sales call monitoring. Powered by AssemblyAI's V3 Streaming WebSocket API and FastAPI, the platform ingests audio streams, generates real-time transcriptions, and dynamically evaluates agent interactions against compliance and regulatory rules (e.g., detecting unauthorized financial guarantees or missing disclosures).🌟 Key FeaturesReal-Time Speech-to-Text: Streamlined WebSocket integration with AssemblyAI V3 for ultra-low latency transcription.Automated Compliance & QA Scoring: Real-time evaluation endpoint (/api/qa/evaluate) analyzing live transcripts for regulatory breaches, risk indicators, and supervisor whisper prompts.Ephemeral Token Security: Secure /api/token architecture ensuring client-side WebSocket connections consume temporary short-lived authentication tokens without exposing backend API credentials.Serverless & Local Ready: Built on FastAPI with full support for local Uvicorn development as well as native serverless execution on Vercel.🏗️ Architecture & Data Flow┌─────────────────┐       1. Fetch Temp Token       ┌────────────────────────┐
+│                 │ ──────────────────────────────> │  FastAPI Backend       │
+│  Browser Client │                                 │  (main.py / Vercel)    │
+│  (index.html)   │ <────────────────────────────── │                        │
+│                 │       2. Ephemeral Token        └───────────┬────────────┘
+└────────┬────────┘                                             │
+         │                                                      │ 3. Exchange Key
+         │ 4. Direct Audio Stream & WebSocket                   │    via HTTP GET
+         ▼                                                      ▼
+┌─────────────────────────────────┐                 ┌────────────────────────┐
+│  AssemblyAI V3 Streaming API    │                 │ AssemblyAI Auth Server │
+│  (streaming.assemblyai.com/v3)  │                 └────────────────────────┘
+└─────────────────────────────────┘
+Token Provisioning: The frontend requests a temporary token from /api/token. The backend contacts AssemblyAI's token service using the server-side ASSEMBLYAI_API_KEY and returns a temporary token valid for 3600 seconds.WebSocket Streaming: The client opens a secure direct WebSocket stream to wss://[streaming.assemblyai.com/v3/ws](https://streaming.assemblyai.com/v3/ws) using the temporary token.Compliance Evaluation: As transcript fragments stream in, live text payloads are dispatched to /api/qa/evaluate for real-time risk checks and supervisor whispers.🛠️ Tech StackComponentTechnologyDescriptionBackend FrameworkFastAPIHigh-performance Python async web frameworkSpeech-to-TextAssemblyAI V3Streaming WebSocket Real-Time Transcription APIServer EngineUvicornLightning-fast ASGI web serverTestingPytestUnit testing suiteDeploymentVercelNative FastAPI Serverless Functions Hosting📂 Repository StructurePlaintextVoicePulse_AI/
+├── api/
+│   └── index.py            # Vercel entrypoint bridge (imports app from main)
+├── main.py                 # Core FastAPI application, routes, and QA logic
+├── index.html              # Frontend UI dashboard with audio capture & WebSocket stream
+├── test_main.py            # Automated test suite for endpoints and token retrieval
+├── requirements.txt        # Production dependencies
+├── pyproject.toml          # Project metadata & Vercel builder settings
+└── README.md               # Repository documentation
+🚀 Quickstart — Local SetupPrerequisitesPython 3.10 or higherAssemblyAI API Key (Get one from the AssemblyAI Dashboard)InstallationClone the Repository:DOSgit clone <https://github.com/pervaiz123/VoicePulse_AI.git>
 cd VoicePulse_AI
-```
+Set Up Virtual Environment:DOSpython -m venv venv
 
-### 2. Create and Activate a Virtual Environment
-```bash
-python -m venv venv
+# On Windows
+
 venv\Scripts\activate
-```
 
-### 3. Install Dependencies
-```bash
-pip install fastapi uvicorn requests python-dotenv pydantic
-```
+# On macOS/Linux
 
-### 4. Configure Environment Variables
-Create a `.env` file in the root directory of your project:
-```env
-ASSEMBLYAI_API_KEY=your_actual_assemblyai_api_key_here
-```
+source venv/bin/activate
+Install Dependencies:DOSpip install -r requirements.txt
+Set Environment Variable:DOS# Windows (CMD)
+set ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
 
-### 5. Run the Application
-```bash
-uvicorn main:app --reload
-```
+# Windows (PowerShell)
 
-Open your web browser and navigate to: **`http://127.0.0.1:8000/`**
+$env:ASSEMBLYAI_API_KEY="your_assemblyai_api_key_here"
 
----
+# macOS/Linux
 
-## 📂 Project Directory Structure
-
-```text
-VoicePulse_AI/
-│
-├── main.py              # FastAPI application, token endpoint, and risk evaluation engine
-├── index.html           # Frontend dashboard UI and Web Audio WebSocket handler
-├── requirements.txt     # Python project dependencies
-├── .env                 # Local environment configurations (git-ignored)
-└── README.md            # Project documentation
-```
-
----
-
-## 🛡️ License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+export ASSEMBLYAI_API_KEY="your_assemblyai_api_key_here"
+Run Development Server:DOSuvicorn main:app --reload --port 8000
+Access the dashboard at [http://127.0.0.1:8000](http://127.0.0.1:8000).Running TestsExecute the automated test suite with pytest:DOSpytest
+🌐 Deploying to VercelVoicePulse AI is optimized for Vercel's native FastAPI serverless preset.Push Repository: Ensure all local code is pushed to your GitHub repository:DOSgit add .
+git commit -m "Prepare production deployment"
+git push origin main
+Import Project into Vercel:Navigate to the Vercel Dashboard and click Add New > Project.Select your VoicePulse_AI repository.Under Framework Preset, select FastAPI.Configure Environment Variables:Expand the Environment Variables section.Add the following entry:Key: ASSEMBLYAI_API_KEYValue: Your AssemblyAI API KeyTarget Environments: Check Production, Preview, and Development.Deploy:Click Deploy.Once complete, open your assigned .vercel.app URL and click Start Live Call Monitoring.📡 API EndpointsGET /Serves the primary enterprise monitoring dashboard (index.html).GET /api/tokenRetrieves a temporary authentication token from AssemblyAI V3.Headers Required: Server-side ASSEMBLYAI_API_KEYResponse:JSON{
+  "token": "e301a2..."
+}
+POST /api/qa/evaluateEvaluates a transcript snippet for sales compliance risks.Payload:JSON{
+  "transcript": "This payment has a guaranteed return of investment."
+}
+Response:JSON{
+  "status": "Regulatory Financial Guarantee Violation",
+  "whisper": "CRITICAL: Absolute or numeric financial guarantee detected. Immediate correction required!"
+}
+📄 LicenseThis project is open-source and available under the MIT License.
