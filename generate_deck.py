@@ -4,118 +4,190 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
-def create_deck():
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    blank_layout = prs.slide_layouts[6]
+# Initialize presentation
+prs = Presentation()
+prs.slide_width = Inches(13.333)
+prs.slide_height = Inches(7.5)
+blank_layout = prs.slide_layouts[6]
 
-    BG_COLOR = RGBColor(15, 23, 42)      # #0f172a Slate dark
-    CARD_BG = RGBColor(30, 41, 59)       # #1e293b Card navy
-    TEXT_WHITE = RGBColor(255, 255, 255)
-    TEXT_MUTED = RGBColor(203, 213, 225) # #cbd5e1
-    ACCENT_BLUE = RGBColor(59, 130, 246) # #3b82f6
-    ACCENT_GREEN = RGBColor(52, 211, 153)# #34d399
+# Color Palette (Deep Tech Theme)
+BG_DARK = RGBColor(15, 23, 42)      # Slate Dark
+CARD_BG = RGBColor(30, 41, 59)      # Slate Card
+TEXT_LIGHT = RGBColor(248, 250, 252) # White
+ACCENT_BLUE = RGBColor(56, 189, 248) # Neon Cyan
+ACCENT_PURPLE = RGBColor(168, 85, 247) # Neon Purple
+TEXT_MUTED = RGBColor(148, 163, 184) # Gray
 
-    slides_data = [
-        {
-            "title": "VoicePulse AI Engine",
-            "subtitle": "Enterprise Real-Time Sales QA & Compliance Intelligence Platform",
-            "bullets": [
-                "Presenter: Pervaiz | Machine Learning & AI Engineer",
-                "Core Mission: Safeguarding high-stakes customer calls with sub-second streaming analysis.",
-                "Tech Stack: FastAPI, AssemblyAI V3 Universal Streaming, WebSockets, Web Audio API."
-            ]
-        },
-        {
-            "title": "The Enterprise Compliance Problem",
-            "subtitle": "Why Traditional QA Fails in Fast-Paced Sales Environments",
-            "bullets": [
-                "Manual Post-Call Bottleneck: Reviews happen after calls conclude, resulting in irreversible regulatory violations.",
-                "High Financial Exposure: Absolute guarantees ('100% safe', 'guaranteed returns') lead to massive compliance fines.",
-                "Real-Time Intervention Gap: Existing solutions lack low-latency streaming engines capable of whispering real-time alerts to agents."
-            ]
-        },
-        {
-            "title": "System Architecture & Data Flow",
-            "subtitle": "End-to-End Real-Time Pipeline Design",
-            "bullets": [
-                "Client Audio Ingestion: Browser Web Audio API captures microphone input, downsampling to 16kHz raw PCM.",
-                "Secure Backend Handshake: FastAPI proxy endpoint (`/api/token`) generates short-lived AssemblyAI V3 tokens securely.",
-                "Real-Time WebSocket Stream: Bidirectional stream (`wss://`) processes live audio packets sub-second.",
-                "Semantic Risk Evaluation: Turn-by-turn POST requests calculate risk scores and trigger instant UI supervisor alerts."
-            ]
-        },
-        {
-            "title": "Engineering Challenges & Solutions",
-            "subtitle": "Overcoming Complex Integration Roadblocks",
-            "bullets": [
-                "API Credential Isolation: Routed all token generation requests through a protected backend layer, preventing browser exposure.",
-                "Strict Header Sanitization: Implemented rigorous string cleaning (.strip(), quote/newline stripping) to solve 401 auth rejections.",
-                "Audio Buffer Optimization: Managed ScriptProcessorNode buffers (`Int16Array`) to ensure zero-latency packet transmission without audio clipping."
-            ]
-        },
-        {
-            "title": "Business Impact & Future Roadmap",
-            "subtitle": "Measurable Value & Scalability",
-            "bullets": [
-                "85% Reduction in QA Audit Overhead: Automates compliance checks across thousands of concurrent calls.",
-                "Instant Risk Mitigation: Prevents regulatory penalties before a sales agent closes a conversation.",
-                "Next-Phase Roadmap: Multi-speaker diarization (Agent vs. Customer segregation) and automated post-call executive PDF reporting."
-            ]
-        }
-    ]
+def set_background(slide):
+    background = slide.background
+    fill = background.fill
+    fill.solid()
+    fill.fore_color.rgb = BG_DARK
 
-    for data in slides_data:
-        slide = prs.slides.add_slide(blank_layout)
-        
-        # Background fill
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = BG_COLOR
-        bg.line.fill.background()
+def add_header(slide, title_text, category_text="VOICEPULSE AI // SYSTEM ARCHITECTURE"):
+    # Category Tracker
+    cat_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(11.7), Inches(0.4))
+    tf_cat = cat_box.text_frame
+    p_cat = tf_cat.paragraphs[0]
+    p_cat.text = category_text.upper()
+    p_cat.font.size = Pt(10)
+    p_cat.font.bold = True
+    p_cat.font.color.rgb = ACCENT_PURPLE
+    
+    # Action Title
+    title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.8), Inches(11.7), Inches(0.8))
+    tf_title = title_box.text_frame
+    tf_title.word_wrap = True
+    p_title = tf_title.paragraphs[0]
+    p_title.text = title_text
+    p_title.font.size = Pt(28)
+    p_title.font.bold = True
+    p_title.font.color.rgb = TEXT_LIGHT
 
-        # Title container
-        txBox = slide.shapes.add_textbox(Inches(1.0), Inches(0.8), Inches(11.333), Inches(1.5))
-        tf = txBox.text_frame
-        tf.word_wrap = True
-        
-        p = tf.paragraphs[0]
-        p.text = data["title"]
-        p.font.size = Pt(36)
-        p.font.bold = True
-        p.font.color.rgb = TEXT_WHITE
-        p.font.name = "Segoe UI"
+# ==========================================
+# SLIDE 1: Title Slide (Dark Immersive)
+# ==========================================
+slide1 = prs.slides.add_slide(blank_layout)
+set_background(slide1)
 
-        p2 = tf.add_paragraph()
-        p2.text = data["subtitle"]
-        p2.font.size = Pt(18)
-        p2.font.color.rgb = ACCENT_BLUE
-        p2.font.name = "Segoe UI"
-        p2.space_before = Pt(8)
+title_box = slide1.shapes.add_textbox(Inches(1.0), Inches(2.2), Inches(11.3), Inches(3.0))
+tf = title_box.text_frame
+tf.word_wrap = True
 
-        # Content Card Background
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.0), Inches(2.3), Inches(11.333), Inches(4.5))
-        card.fill.solid()
-        card.fill.fore_color.rgb = CARD_BG
-        card.line.color.rgb = RGBColor(51, 65, 85)
-        card.line.width = Pt(1.5)
+p1 = tf.paragraphs[0]
+p1.text = "VoicePulse AI"
+p1.font.size = Pt(54)
+p1.font.bold = True
+p1.font.color.rgb = ACCENT_BLUE
 
-        # Content bullets inside card
-        c_box = slide.shapes.add_textbox(Inches(1.3), Inches(2.6), Inches(10.7), Inches(3.9))
-        c_tf = c_box.text_frame
-        c_tf.word_wrap = True
+p2 = tf.add_paragraph()
+p2.text = "Real-Time Voice QA & Enterprise Speech Analytics Platform"
+p2.font.size = Pt(22)
+p2.font.color.rgb = TEXT_LIGHT
+p2.space_before = Pt(10)
 
-        for i, bullet in enumerate(data["bullets"]):
-            bp = c_tf.add_paragraph() if i > 0 else c_tf.paragraphs[0]
-            bp.text = f"• {bullet}"
-            bp.font.size = Pt(18)
-            bp.font.color.rgb = TEXT_MUTED
-            bp.font.name = "Segoe UI"
-            bp.space_before = Pt(14)
+p3 = tf.add_paragraph()
+p3.text = "Production-Ready Microservice Architecture • Built with FastAPI, Docker & AssemblyAI"
+p3.font.size = Pt(14)
+p3.font.color.rgb = TEXT_MUTED
+p3.space_before = Pt(25)
 
-    prs.save("VoicePulse_AI_Presentation.pptx")
-    print("Successfully generated VoicePulse_AI_Presentation.pptx!")
+# ==========================================
+# SLIDE 2: Executive Summary / The Problem
+# ==========================================
+slide2 = prs.slides.add_slide(blank_layout)
+set_background(slide2)
+add_header(slide2, "The Challenge: Manual QA is Slow & Unscalable")
 
-if __name__ == "__main__":
-    create_deck()
+cards_data = [
+    ("The Latency Bottleneck", "Traditional speech review processes rely on manual spot-checking, causing severe evaluation delays across high-volume customer interaction lines."),
+    ("Compliance Blind Spots", "Human oversight misses up to 85% of regulatory or script adherence infractions during live agent-customer audio calls."),
+    ("Integration Friction", "Existing analytics tools lack lightweight, plug-and-play containerized deployment frameworks required by modern cloud infrastructures.")
+]
+
+for i, (head, desc) in enumerate(cards_data):
+    left = Inches(0.8 + (i * 3.9))
+    shape = slide2.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, Inches(2.2), Inches(3.6), Inches(4.2))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = CARD_BG
+    shape.line.color.rgb = ACCENT_PURPLE
+    
+    tf = shape.text_frame
+    tf.word_wrap = True
+    tf.margin_top = Inches(0.4)
+    tf.margin_left = Inches(0.3)
+    tf.margin_right = Inches(0.3)
+    
+    p = tf.paragraphs[0]
+    p.text = head
+    p.font.size = Pt(18)
+    p.font.bold = True
+    p.font.color.rgb = ACCENT_BLUE
+    
+    p_body = tf.add_paragraph()
+    p_body.text = desc
+    p_body.font.size = Pt(13)
+    p_body.font.color.rgb = TEXT_MUTED
+    p_body.space_before = Pt(15)
+
+# ==========================================
+# SLIDE 3: System Workflow & Architecture
+# ==========================================
+slide3 = prs.slides.add_slide(blank_layout)
+set_background(slide3)
+add_header(slide3, "Working Flow Diagram: End-to-End Pipeline")
+
+steps = [
+    ("1. Ingestion Layer", "Audio input streams or payloads sent securely to FastAPI REST endpoints."),
+    ("2. Auth & Processing", "Token validation, schema validation with Pydantic v2, and queue sorting."),
+    ("3. Speech Engine", "AssemblyAI streaming integration processes audio transcripts instantly."),
+    ("4. QA Evaluation", "Automated scoring, sentiment calculation, and database persistence.")
+]
+
+for i, (title, text) in enumerate(steps):
+    top = Inches(2.0 + (i * 1.2))
+    
+    # Step Node Box
+    shape = slide3.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), top, Inches(3.2), Inches(0.9))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = CARD_BG
+    shape.line.color.rgb = ACCENT_BLUE
+    
+    tf = shape.text_frame
+    p = tf.paragraphs[0]
+    p.text = title
+    p.font.size = Pt(14)
+    p.font.bold = True
+    p.font.color.rgb = ACCENT_BLUE
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Description Box
+    desc_box = slide3.shapes.add_textbox(Inches(4.3), top, Inches(8.0), Inches(0.9))
+    tf_desc = desc_box.text_frame
+    tf_desc.word_wrap = True
+    p_desc = tf_desc.paragraphs[0]
+    p_desc.text = text
+    p_desc.font.size = Pt(14)
+    p_desc.font.color.rgb = TEXT_LIGHT
+
+# ==========================================
+# SLIDE 4: Technical Stack & Production Readiness
+# ==========================================
+slide4 = prs.slides.add_slide(blank_layout)
+set_background(slide4)
+add_header(slide4, "Enterprise Technology Stack & Docker Deployment")
+
+tech_columns = [
+    ("Core Backend", ["FastAPI (Asynchronous)", "Uvicorn ASGI Server", "Pydantic v2 Validation", "Python 3.13 Runtime"]),
+    ("Data & Integration", ["AssemblyAI Speech API", "SQLAlchemy ORM", "SQLite Persistence", "Requests Network Layer"]),
+    ("DevOps & Production", ["Docker Containerization", "Multi-stage Dockerfile", "Docker Compose Config", "Automated Health Checks"])
+]
+
+for i, (col_title, items) in enumerate(tech_columns):
+    left = Inches(0.8 + (i * 3.9))
+    shape = slide4.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, Inches(2.2), Inches(3.6), Inches(4.2))
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = CARD_BG
+    shape.line.color.rgb = ACCENT_BLUE
+    
+    tf = shape.text_frame
+    tf.word_wrap = True
+    tf.margin_top = Inches(0.4)
+    tf.margin_left = Inches(0.3)
+    
+    p = tf.paragraphs[0]
+    p.text = col_title
+    p.font.size = Pt(18)
+    p.font.bold = True
+    p.font.color.rgb = ACCENT_PURPLE
+    
+    for item in items:
+        pi = tf.add_paragraph()
+        pi.text = f"• {item}"
+        pi.font.size = Pt(14)
+        pi.font.color.rgb = TEXT_LIGHT
+        pi.space_before = Pt(12)
+
+# Save Presentation
+prs.save("VoicePulse_AI_Presentation.pptx")
+print("Presentation generated successfully: VoicePulse_AI_Presentation.pptx")

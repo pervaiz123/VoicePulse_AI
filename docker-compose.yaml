@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-    voicepulse-api:
-        build:
-            context: .
-            dockerfile: Dockerfile
-        image: voicepulse-api:latest
-        container_name: voicepulse-api-service
-        ports:
-            - "8000:8000"
-        environment:
-            - PYTHONUNBUFFERED=1
-        restart: unless-stopped
+  voicepulse-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: voicepulse-api:latest
+    container_name: voicepulse-api-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
